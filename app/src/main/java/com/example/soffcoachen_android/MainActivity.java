@@ -2,8 +2,14 @@ package com.example.soffcoachen_android;
 
 import static android.content.ContentValues.TAG;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.soffcoachen_android.adapters.PostAdapter;
-import com.example.soffcoachen_android.models.ApiResponse;
+import com.example.soffcoachen_android.network.ApiResponse;
 import com.example.soffcoachen_android.models.Post;
 import com.example.soffcoachen_android.models.Team;
 import com.example.soffcoachen_android.network.ApiService;
@@ -35,24 +41,142 @@ public class MainActivity extends AppCompatActivity {
     private static final String BASE_URL = "http://192.168.0.13:8000/api/";
     private RecyclerView recyclerView;
     private PostAdapter postAdapter;
+    private ApiService apiService;
     private List<Post> postList = new ArrayList<>();
     private List<Team> teamList = new ArrayList<>();
+    private WebView webView;
+
+    private Button loginButton;
+    private Button logoutButton;
+    private Button newPostButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initScreenConfig();
 
+        this.recyclerView = findViewById(R.id.recyclerView_posts);
+        this.recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        this.postAdapter = new PostAdapter(this.postList);
+        this.recyclerView.setAdapter(this.postAdapter);
 
-        recyclerView = findViewById(R.id.recyclerView_posts);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        // Fetch home page posts from API.
+        fetch_home();
 
-        this.postAdapter = new PostAdapter(postList);
-        this.recyclerView.setAdapter(postAdapter);
+        this.loginButton = findViewById(R.id.loginButton);
+        this.logoutButton = findViewById(R.id.logoutButton);
+        this.newPostButton = findViewById(R.id.newPostButton);
+        this.loginButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openLoginWebView();
+            }
+        });
+        this.newPostButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openNewPostWebView();
+            }
+        });
+    }
 
-        // Fetch posts from API or data source
+    private void openLoginWebView() {
+        this.webView = findViewById(R.id.login_webView);
+        this.webView.getSettings().setJavaScriptEnabled(true);
+        this.webView.addJavascriptInterface(new WebAppInterface(this), "Android");
+        this.webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                String script = "(function() {" +
+                        "function checkLoginSuccess() {" +
+                        "    var text = document.body.innerText || document.body.textContent;" +
+                        "    if (text.indexOf('login_success') !== -1) {" +
+                        "        Android.onLoginSuccess();" +
+                        "    } else {" +
+                        "        setTimeout(checkLoginSuccess, 1000);" +
+                        "    }" +
+                        "}" +
+                        "checkLoginSuccess();" +
+                        "})();";
+                webView.evaluateJavascript(script, null);
+            }
+        });
+
+        this.recyclerView.setVisibility(View.GONE);
+        this.webView.setVisibility(View.VISIBLE);
+        this.webView.loadUrl("http://192.168.0.13:8000/api/login");
+    }
+
+    private void openNewPostWebView() {
+        this.webView = findViewById(R.id.login_webView);
+        this.webView.getSettings().setJavaScriptEnabled(true);
+        this.webView.addJavascriptInterface(new WebAppInterface(this), "Android");
+        this.webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                String script = "(function() {" +
+                        "function checkLoginSuccess() {" +
+                        "    var text = document.body.innerText || document.body.textContent;" +
+                        "    if (text.indexOf('new_post_success') !== -1) {" +
+                        "        Android.onNewPostSuccess();" +
+                        "    } else {" +
+                        "        setTimeout(checkLoginSuccess, 1000);" +
+                        "    }" +
+                        "}" +
+                        "checkLoginSuccess();" +
+                        "})();";
+                webView.evaluateJavascript(script, null);
+            }
+        });
+
+        this.recyclerView.setVisibility(View.GONE);
+        this.webView.setVisibility(View.VISIBLE);
+        this.webView.loadUrl("http://192.168.0.13:8000/api/new_post");
+    }
+
+    private void returnToRecyclerView() {
+        this.webView.setVisibility(View.GONE);
+        this.recyclerView.setVisibility(View.VISIBLE);
+        this.webView.getSettings().setJavaScriptEnabled(false);
+
         fetch_home();
     }
+
+    public class WebAppInterface {
+        Context mContext;
+
+        WebAppInterface(Context context) {
+            mContext = context;
+        }
+
+        @JavascriptInterface
+        public void onLoginSuccess() {
+            // Close the WebView or handle the event
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    loginButton.setVisibility(View.GONE);
+                    logoutButton.setVisibility(View.GONE);
+                    newPostButton.setVisibility(View.VISIBLE);
+                    returnToRecyclerView();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void onNewPostSuccess() {
+            // Close the WebView or handle the event
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    returnToRecyclerView();
+                }
+            });
+        }
+    }
+
+
+
 
     private void fetch_home() {
         // Adding logging interceptor to log the network requests
@@ -68,8 +192,8 @@ public class MainActivity extends AppCompatActivity {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
-        ApiService apiService = retrofit.create(ApiService.class);
-        Call<ApiResponse> call = apiService.getApiResponse();
+        this.apiService = retrofit.create(ApiService.class);
+        Call<ApiResponse> call = this.apiService.getApiResponse();
 
         call.enqueue(new Callback<ApiResponse>() {
             @Override
@@ -112,11 +236,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void addToPostList(Post post) {
         this.postList.add(post);
-        Log.d(TAG, "adding post: " + post);
     }
 
     public void addToTeamList(Team team) {
         this.teamList.add(team);
-        Log.d(TAG, "adding team: " + team);
     }
 }

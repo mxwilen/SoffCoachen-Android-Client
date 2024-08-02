@@ -1,4 +1,7 @@
-package com.example.soffcoachen_android.models;
+package com.example.soffcoachen_android.network;
+
+import com.example.soffcoachen_android.models.Post;
+import com.example.soffcoachen_android.models.Team;
 
 import java.util.List;
 
