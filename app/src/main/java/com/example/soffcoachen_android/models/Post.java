@@ -16,15 +16,19 @@ public class Post {
     private final int id;
     private final int user_id;
     private final String date_posted;
+    private final String team;
+    private final String tag;
     private final String user_team;
 
-    public Post(String title, String content, int id, String author, int user_id, String date_posted, String user_team) {
+    public Post(String title, String content, int id, String date_posted, String team, String tag, String author, int user_id, String user_team) {
         this.title = title;
         this.content = content;
         this.id = id;
+        this.date_posted = date_posted;
+        this.team = team;
+        this.tag = tag;
         this.author = author;
         this.user_id = user_id;
-        this.date_posted = date_posted;
         this.user_team = user_team;
     }
 
@@ -48,4 +52,6 @@ public class Post {
         return this.date_posted;
     }
     public String getUserTeam() { return this.user_team; }
+    public String getPostTeam() { return this.team; }
+    public String getPostTag() { return this.tag; }
 }

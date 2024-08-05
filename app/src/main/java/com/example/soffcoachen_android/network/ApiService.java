@@ -2,8 +2,15 @@ package com.example.soffcoachen_android.network;
 
 import retrofit2.Call;
 import retrofit2.http.GET;
+import retrofit2.http.Query;
 
 public interface ApiService {
     @GET("home")
-    Call<ApiResponse> getApiResponse();
+    Call<HomeApiResponse> getHomeApiResponse();
+
+    @GET("logout")
+    Call<LogoutApiResponse> getLogoutApiResponse();
+
+    @GET("post")
+    Call<PostApiResponse> getPostApiResponse(@Query("post_id") int parameterValue);
 }
