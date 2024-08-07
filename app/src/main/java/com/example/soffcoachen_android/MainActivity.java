@@ -32,7 +32,6 @@ import com.example.soffcoachen_android.network.HomeApiResponse;
 import com.example.soffcoachen_android.models.Post;
 import com.example.soffcoachen_android.models.Team;
 import com.example.soffcoachen_android.network.ApiService;
-import com.example.soffcoachen_android.network.LogoutApiResponse;
 import com.example.soffcoachen_android.network.PostApiResponse;
 
 import okhttp3.OkHttpClient;
@@ -44,8 +43,8 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 
-public class MainActivity extends AppCompatActivity {
-    private static final String BASE_URL = "http://192.168.0.13:8000/api/";
+public class MainActivity extends AppCompatActivity implements PostAdapter.PostAdapterCallback {
+    public static final String BASE_URL = "http://192.168.0.13:8000/api/";
     private RecyclerView recyclerView;
     private PostAdapter postAdapter;
     private ApiService apiService;
@@ -55,7 +54,8 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private Toolbar toolbar;
     private Button cancelButton;
-
+    private Button likeButton;
+    private TextView likeCount;
     private Button loginButton;
     private Button logoutButton;
     private Button newPostButton;
@@ -64,11 +64,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        initScreenConfig();
+        setContentView(R.layout.activity_main);
 
         this.recyclerView = findViewById(R.id.recyclerView_posts);
+        this.webView = findViewById(R.id.webView);
         this.recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        this.postAdapter = new PostAdapter(this.postList);
+        this.postAdapter = new PostAdapter(this, this.postList, this.webView, this);
         this.recyclerView.setAdapter(this.postAdapter);
 
         // Fetch home page posts from API.
@@ -79,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
         this.loginButton = findViewById(R.id.loginButton);
         this.logoutButton = findViewById(R.id.logoutButton);
         this.newPostButton = findViewById(R.id.newPostButton);
+        this.likeButton = findViewById(R.id.likeButton);
+        this.likeCount = findViewById(R.id.post_no_of_likes);
         this.currentUserButton = findViewById(R.id.currentUserButton);
         this.cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -155,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
         this.toolbar.setVisibility(View.GONE);
         this.webView.setVisibility(View.VISIBLE);
         this.cancelButton.setVisibility(View.VISIBLE);
-        this.webView.loadUrl("http://192.168.0.13:8000/api/login");
+        this.webView.loadUrl(BASE_URL + "login");
     }
 
     private void openLogoutWebView() {
@@ -179,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
                 webView.evaluateJavascript(script, null);
             }
         });
-        this.webView.loadUrl("http://192.168.0.13:8000/api/logout");
+        this.webView.loadUrl(BASE_URL + "logout");
     }
 
     private void openNewPostWebView() {
@@ -208,7 +211,7 @@ public class MainActivity extends AppCompatActivity {
         this.toolbar.setVisibility(View.GONE);
         this.webView.setVisibility(View.VISIBLE);
         this.cancelButton.setVisibility(View.VISIBLE);
-        this.webView.loadUrl("http://192.168.0.13:8000/api/new_post");
+        this.webView.loadUrl(BASE_URL + "new_post");
     }
 
     private void openAccountWebView() {
@@ -242,10 +245,10 @@ public class MainActivity extends AppCompatActivity {
         this.toolbar.setVisibility(View.GONE);
         this.webView.setVisibility(View.VISIBLE);
         this.cancelButton.setVisibility(View.VISIBLE);
-        this.webView.loadUrl("http://192.168.0.13:8000/api/account");
+        this.webView.loadUrl(BASE_URL + "account");
     }
 
-    private void returnToRecyclerView() {
+    public void returnToRecyclerView() {
         fetch_home();
 
         this.webView.setVisibility(View.GONE);
@@ -273,6 +276,7 @@ public class MainActivity extends AppCompatActivity {
                     loginButton.setVisibility(View.GONE);
                     logoutButton.setVisibility(View.VISIBLE);
                     newPostButton.setVisibility(View.VISIBLE);
+                    Toast.makeText(MainActivity.this, "Successfully logged in. Welcome back!", Toast.LENGTH_SHORT).show();
                     returnToRecyclerView();
                 }
             });
@@ -289,6 +293,7 @@ public class MainActivity extends AppCompatActivity {
                     loginButton.setVisibility(View.VISIBLE);
                     logoutButton.setVisibility(View.GONE);
                     newPostButton.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "Successfully logged out!", Toast.LENGTH_SHORT).show();
                     returnToRecyclerView();
                 }
             });
@@ -409,19 +414,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
-
-    private void initScreenConfig() {
-        EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-    }
-
     private void resetLists() {
         this.postList.clear();
         this.teamList.clear();
@@ -440,7 +432,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setCurrentUser(String currentUser) {
-        Log.d(TAG, "Setting currentUser to: " + currentUser);
         this.currentUserButton.setText(currentUser);
     }
 }

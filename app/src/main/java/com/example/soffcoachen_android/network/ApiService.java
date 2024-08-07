@@ -8,9 +8,6 @@ public interface ApiService {
     @GET("home")
     Call<HomeApiResponse> getHomeApiResponse();
 
-    @GET("logout")
-    Call<LogoutApiResponse> getLogoutApiResponse();
-
     @GET("post")
     Call<PostApiResponse> getPostApiResponse(@Query("post_id") int parameterValue);
 }
