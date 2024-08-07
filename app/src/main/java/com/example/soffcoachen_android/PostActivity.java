@@ -4,10 +4,16 @@ import static android.content.ContentValues.TAG;
 
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -33,7 +39,7 @@ import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class PostActivity extends AppCompatActivity {
+public class PostActivity extends AppCompatActivity implements CommentsAdapter.CommentAdapterCallback {
 
     private TextView postAuthor;
     private TextView postAuthorTeam;
@@ -48,8 +54,14 @@ public class PostActivity extends AppCompatActivity {
     private CommentsAdapter commentsAdapter;
     private List<Comment> commentsList = new ArrayList<>();
 
+    private Button commentButton;
+    private Button cancelButton;
+
     private ApiService apiService;
     private WebView webView;
+    private int postId;
+    private View postItem;
+    private View commentLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +78,7 @@ public class PostActivity extends AppCompatActivity {
         this.postNoOfLikes = findViewById(R.id.post_no_of_likes);
 
         // Retrieve the post data from the intent created when clicking on a post. (PostAdapter)
-        int postId = getIntent().getIntExtra("post_id", 0);
+        this.postId = getIntent().getIntExtra("post_id", 0);
         String postAuthor = getIntent().getStringExtra("post_author");
         String postAuthorTeam = getIntent().getStringExtra("post_author_team");
         String datePosted = getIntent().getStringExtra("date_posted");
@@ -90,9 +102,79 @@ public class PostActivity extends AppCompatActivity {
         this.webView = findViewById(R.id.webView);
         this.commentsRecyclerView = findViewById(R.id.comments_recycler_view);
 
-        this.commentsAdapter = new CommentsAdapter(this, this.commentsList, this.webView);
+        this.commentsAdapter = new CommentsAdapter(this, this.commentsList, this.webView, this);
         this.commentsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         this.commentsRecyclerView.setAdapter(this.commentsAdapter);
+
+        this.postItem = findViewById(R.id.post_item);
+
+        this.commentButton = findViewById(R.id.commentButton);
+        this.commentLayout = findViewById(R.id.comment_layout);
+        this.cancelButton = findViewById(R.id.cancelButton);
+        this.cancelButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                commentLayout.setVisibility(View.VISIBLE);
+                postItem.setVisibility(View.VISIBLE);
+                webView.setVisibility(View.GONE);
+                cancelButton.setVisibility(View.GONE);
+                commentsRecyclerView.setVisibility(View.VISIBLE);
+            }
+        });
+        this.commentButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openCommentWebView();
+            }
+        });
+    }
+
+    private void openCommentWebView() {
+        this.webView = findViewById(R.id.webView);
+        this.webView.getSettings().setJavaScriptEnabled(true);
+        this.webView.addJavascriptInterface(new PostActivity.WebAppInterface(this), "Android");
+        this.webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                String script = "(function() {" +
+                        "function checkCommentSuccess() {" +
+                        "    var text = document.body.innerText || document.body.textContent;" +
+                        "    if (text.indexOf('new_comment_success') !== -1) {" +
+                        "        Android.onNewCommentSuccess();" +
+                        "    } else {" +
+                        "        setTimeout(checkCommentSuccess, 1000);" +
+                        "    }" +
+                        "}" +
+                        "checkCommentSuccess();" +
+                        "})();";
+                webView.evaluateJavascript(script, null);
+            }
+        });
+        this.commentLayout.setVisibility(View.GONE);
+        this.postItem.setVisibility(View.GONE);
+        this.commentsRecyclerView.setVisibility(View.GONE);
+        this.webView.setVisibility(View.VISIBLE);
+        this.cancelButton.setVisibility(View.VISIBLE);
+        this.webView.loadUrl(BASE_URL + "new_comment?post_id=" + this.postId);
+    }
+
+    public class WebAppInterface {
+        Context mContext;
+
+        WebAppInterface(Context context) {
+            mContext = context;
+        }
+
+        @JavascriptInterface
+        public void onNewCommentSuccess() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(PostActivity.this, "Comment created successfully!", Toast.LENGTH_SHORT).show();
+                    returnToRecyclerView();
+                }
+            });
+        }
     }
 
     private void fetch_post(int postId) {
@@ -118,6 +200,7 @@ public class PostActivity extends AppCompatActivity {
                 if (response.isSuccessful()) {
                     PostApiResponse postApiResponse = response.body();
                     if (postApiResponse != null) {
+                        clearLists();
                         for (Comment comment : postApiResponse.getComments()) {
                             addToCommentList(comment);
                         }
@@ -139,6 +222,22 @@ public class PostActivity extends AppCompatActivity {
 
     public void addToCommentList(Comment comment) {
         this.commentsList.add(comment);
+    }
+
+    private void clearLists() {
+        this.commentsList.clear();
+    }
+
+    @Override
+    public void returnToRecyclerView() {
+        fetch_post(this.postId);
+
+        this.postItem.setVisibility(View.VISIBLE);
+        this.commentLayout.setVisibility(View.VISIBLE);
+        this.webView.setVisibility(View.GONE);
+        // this.cancelButton.setVisibility(View.GONE);
+        this.commentsRecyclerView.setVisibility(View.VISIBLE);
+        this.webView.getSettings().setJavaScriptEnabled(false);
     }
 }
 
