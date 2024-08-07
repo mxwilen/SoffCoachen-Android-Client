@@ -122,7 +122,6 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
             public void onItemClick(int position) {
                 Post post = postList.get(position);
                 Toast.makeText(MainActivity.this, "Clicked: " + post.getTitle(), Toast.LENGTH_SHORT).show();
-                fetch_post(post.getPostId());
             }
         });
     }
@@ -328,7 +327,7 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
     private void fetch_home() {
         // Adding logging interceptor to log the network requests
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
+        logging.setLevel(HttpLoggingInterceptor.Level.NONE);
 
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(logging);
@@ -367,49 +366,6 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
             @Override
             public void onFailure(Call<HomeApiResponse> call, Throwable t) {
                 Log.e(TAG, "fetch_home: Network call failed: " + t.getMessage());
-            }
-        });
-    }
-
-    private void fetch_post(int postId) {
-        // Adding logging interceptor to log the network requests
-        HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
-
-        OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
-        httpClient.addInterceptor(logging);
-
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .client(httpClient.build())
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-
-        this.apiService = retrofit.create(ApiService.class);
-        Call<PostApiResponse> call = this.apiService.getPostApiResponse(postId);
-
-        call.enqueue(new Callback<PostApiResponse>() {
-            @Override
-            public void onResponse(Call<PostApiResponse> call, Response<PostApiResponse> response) {
-                if (response.isSuccessful()) {
-                    PostApiResponse postApiResponse = response.body();
-                    if (postApiResponse != null) {
-                        Log.d(TAG, "antal comments: " + postApiResponse.getComments());
-                        for (Comment comment : postApiResponse.getComments()) {
-                            addToCommentList(comment);
-                        }
-                        postAdapter.notifyDataSetChanged();
-                    } else {
-                        Log.e(TAG, "fetch_post: Response body is null");
-                    }
-                } else {
-                    Log.e(TAG, "fetch_post: Response not successful: " + response.message());
-                }
-            }
-
-            @Override
-            public void onFailure(Call<PostApiResponse> call, Throwable t) {
-                Log.e(TAG, "fetch_post: Network call failed: " + t.getMessage());
             }
         });
     }

@@ -1,8 +1,10 @@
 package com.example.soffcoachen_android.adapters;
 
+import static android.content.ContentValues.TAG;
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -77,6 +79,7 @@ public class CommentsAdapter extends RecyclerView.Adapter<CommentsAdapter.Commen
                     }
                 });
                 webView.loadUrl(BASE_URL + "like/comment?comment_id=" + comment.getId());
+                Log.d(TAG, "liking comment: " + comment.getId());
             }
         });
     }

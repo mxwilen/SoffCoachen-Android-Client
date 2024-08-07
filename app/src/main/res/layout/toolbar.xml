@@ -4,12 +4,13 @@
     android:id="@+id/toolbar"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="center"
     android:theme="?attr/actionBarTheme">
 
     <Button
         android:id="@+id/loginButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:text="Login"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true" />
@@ -17,7 +18,7 @@
     <Button
         android:id="@+id/logoutButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:text="Logout"
         android:visibility="gone"
         android:layout_alignParentBottom="true"
@@ -26,7 +27,7 @@
     <Button
         android:id="@+id/newPostButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:text="New Post"
         android:visibility="gone"
         android:layout_alignParentBottom="true"
@@ -35,6 +36,6 @@
     <Button
         android:id="@+id/currentUserButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:visibility="gone"/>
 </androidx.appcompat.widget.Toolbar>

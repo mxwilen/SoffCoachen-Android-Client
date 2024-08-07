@@ -4,6 +4,7 @@ import static android.content.ContentValues.TAG;
 
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
@@ -180,7 +181,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
     private void fetch_post(int postId) {
         // Adding logging interceptor to log the network requests
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
+        logging.setLevel(HttpLoggingInterceptor.Level.NONE);
 
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(logging);
