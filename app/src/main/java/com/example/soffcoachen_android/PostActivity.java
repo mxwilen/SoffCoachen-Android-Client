@@ -6,6 +6,7 @@ import static com.example.soffcoachen_android.MainActivity.BASE_URL;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -21,12 +22,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.soffcoachen_android.adapters.CommentsAdapter;
-import com.example.soffcoachen_android.adapters.PostAdapter;
 import com.example.soffcoachen_android.models.Comment;
 import com.example.soffcoachen_android.models.Post;
-import com.example.soffcoachen_android.models.Team;
 import com.example.soffcoachen_android.network.ApiService;
-import com.example.soffcoachen_android.network.HomeApiResponse;
 import com.example.soffcoachen_android.network.PostApiResponse;
 
 import java.util.ArrayList;
@@ -42,6 +40,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class PostActivity extends AppCompatActivity implements CommentsAdapter.CommentAdapterCallback {
 
+    private Post post;
     private TextView postAuthor;
     private TextView postAuthorTeam;
     private TextView datePosted;
@@ -49,7 +48,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
     private TextView postTag;
     private TextView postTitle;
     private TextView postContent;
-    private TextView postNoOfLikes;
+    private TextView postNoOfLikesTextView;
 
     private RecyclerView commentsRecyclerView;
     private CommentsAdapter commentsAdapter;
@@ -62,7 +61,9 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
     private WebView webView;
     private int postId;
     private View postItem;
+    private Button postLikeButton;
     private View commentLayout;
+    private SharedPreferences sharedPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +77,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.postTag = findViewById(R.id.post_tag);
         this.postTitle = findViewById(R.id.post_title);
         this.postContent = findViewById(R.id.post_content);
-        this.postNoOfLikes = findViewById(R.id.post_no_of_likes);
+        this.postNoOfLikesTextView = findViewById(R.id.post_no_of_likes);
 
         // Retrieve the post data from the intent created when clicking on a post. (PostAdapter)
         this.postId = getIntent().getIntExtra("post_id", 0);
@@ -96,10 +97,8 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.postTag.setText(postTag);
         this.postTitle.setText(postTitle);
         this.postContent.setText(postContent);
-        this.postNoOfLikes.setText(postNoOfLikes);
+        this.postNoOfLikesTextView.setText(postNoOfLikes);
 
-
-        fetch_post(postId);
         this.webView = findViewById(R.id.webView);
         this.commentsRecyclerView = findViewById(R.id.comments_recycler_view);
 
@@ -108,9 +107,12 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.commentsRecyclerView.setAdapter(this.commentsAdapter);
 
         this.postItem = findViewById(R.id.post_item);
-
+        this.postLikeButton = findViewById(R.id.postActivity_postLikeButton);
+        this.commentLayout = findViewById(R.id.comment_button_layout);
         this.commentButton = findViewById(R.id.commentButton);
-        this.commentLayout = findViewById(R.id.comment_layout);
+
+        configCommentAndLikeButton();
+
         this.cancelButton = findViewById(R.id.cancelButton);
         this.cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -128,6 +130,35 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
                 openCommentWebView();
             }
         });
+        this.postLikeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) { openLikePostWebView(); }
+        });
+        fetch_post(postId);
+    }
+
+    private void openLikePostWebView() {
+        this.webView.getSettings().setJavaScriptEnabled(true);
+        this.webView.addJavascriptInterface(new PostActivity.WebAppInterface(this), "Android");
+        this.webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                String script = "(function() {" +
+                        "function checkLikePostSuccess() {" +
+                        "    var text = document.body.innerText || document.body.textContent;" +
+                        "    if (text.indexOf('like_post_success') !== -1) {" +
+                        "        Android.onLikePostSuccess();" +
+                        "    } else {" +
+                        "        setTimeout(checkLikePostSuccess, 1000);" +
+                        "    }" +
+                        "}" +
+                        "checkLikePostSuccess();" +
+                        "})();";
+                webView.evaluateJavascript(script, null);
+            }
+        });
+        // Load the URL to like the post
+        this.webView.loadUrl(BASE_URL + "like/post?post_id=" + this.postId);
     }
 
     private void openCommentWebView() {
@@ -171,10 +202,26 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(PostActivity.this, "Comment created successfully!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(mContext, "Comment created successfully!", Toast.LENGTH_SHORT).show();
                     returnToRecyclerView();
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void onLikePostSuccess() {
+            // Ensure that the context is an instance of Activity before calling runOnUiThread
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        postNoOfLikesTextView.setText(post.getNoOfLikes());
+
+                        Toast.makeText(mContext, "Liked post!", Toast.LENGTH_SHORT).show();
+                        returnToRecyclerView();
+                    }
+                });
+            }
         }
     }
 
@@ -202,10 +249,12 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
                     PostApiResponse postApiResponse = response.body();
                     if (postApiResponse != null) {
                         clearLists();
+                        setPost(postApiResponse.getPost());
                         for (Comment comment : postApiResponse.getComments()) {
                             addToCommentList(comment);
                         }
-                        commentsAdapter.notifyDataSetChanged();
+                        // Notify adapter of data change. Run on main thread.
+                        runOnUiThread(() -> commentsAdapter.notifyDataSetChanged());
                     } else {
                         Log.e(TAG, "fetch_post: Response body is null");
                     }
@@ -225,20 +274,30 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.commentsList.add(comment);
     }
 
+    private void setPost(Post post) {
+        this.post = post;
+    }
+
     private void clearLists() {
         this.commentsList.clear();
     }
 
-    @Override
     public void returnToRecyclerView() {
+        configCommentAndLikeButton();
         fetch_post(this.postId);
 
         this.postItem.setVisibility(View.VISIBLE);
         this.commentLayout.setVisibility(View.VISIBLE);
         this.webView.setVisibility(View.GONE);
-        // this.cancelButton.setVisibility(View.GONE);
         this.commentsRecyclerView.setVisibility(View.VISIBLE);
         this.webView.getSettings().setJavaScriptEnabled(false);
+    }
+
+    private void configCommentAndLikeButton() {
+        SharedPreferences sharedPreferences = getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String currentUser = sharedPreferences.getString("current_user", null);
+        this.commentButton.setEnabled(currentUser != null);
+        this.postLikeButton.setEnabled(currentUser != null);
     }
 }
 

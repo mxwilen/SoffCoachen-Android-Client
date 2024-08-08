@@ -2,7 +2,9 @@ package com.example.soffcoachen_android;
 
 import static android.content.ContentValues.TAG;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -13,16 +15,11 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.List;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -32,7 +29,6 @@ import com.example.soffcoachen_android.network.HomeApiResponse;
 import com.example.soffcoachen_android.models.Post;
 import com.example.soffcoachen_android.models.Team;
 import com.example.soffcoachen_android.network.ApiService;
-import com.example.soffcoachen_android.network.PostApiResponse;
 
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -54,12 +50,12 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
     private WebView webView;
     private Toolbar toolbar;
     private Button cancelButton;
-    private Button likeButton;
     private TextView likeCount;
     private Button loginButton;
     private Button logoutButton;
     private Button newPostButton;
     private Button currentUserButton;
+    private SharedPreferences sharedPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         this.postAdapter = new PostAdapter(this, this.postList, this.webView, this);
         this.recyclerView.setAdapter(this.postAdapter);
 
+
         // Fetch home page posts from API.
         fetch_home();
 
@@ -80,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         this.loginButton = findViewById(R.id.loginButton);
         this.logoutButton = findViewById(R.id.logoutButton);
         this.newPostButton = findViewById(R.id.newPostButton);
-        this.likeButton = findViewById(R.id.likeButton);
+
         this.likeCount = findViewById(R.id.post_no_of_likes);
         this.currentUserButton = findViewById(R.id.currentUserButton);
         this.cancelButton.setOnClickListener(new View.OnClickListener() {
@@ -121,7 +118,6 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
             @Override
             public void onItemClick(int position) {
                 Post post = postList.get(position);
-                Toast.makeText(MainActivity.this, "Clicked: " + post.getTitle(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -283,19 +279,21 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
 
         @JavascriptInterface
         public void onLogoutSuccess() {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    setCurrentUser(null);
-                    currentUserButton.setVisibility(View.GONE);
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setCurrentUser(null);
+                        currentUserButton.setVisibility(View.GONE);
 
-                    loginButton.setVisibility(View.VISIBLE);
-                    logoutButton.setVisibility(View.GONE);
-                    newPostButton.setVisibility(View.GONE);
-                    Toast.makeText(MainActivity.this, "Successfully logged out!", Toast.LENGTH_SHORT).show();
-                    returnToRecyclerView();
-                }
-            });
+                        loginButton.setVisibility(View.VISIBLE);
+                        logoutButton.setVisibility(View.GONE);
+                        newPostButton.setVisibility(View.GONE);
+                        Toast.makeText(MainActivity.this, "Successfully logged out!", Toast.LENGTH_SHORT).show();
+                        returnToRecyclerView();
+                    }
+                });
+            }
         }
 
         @JavascriptInterface
@@ -348,13 +346,27 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                     HomeApiResponse homeApiResponse = response.body();
                     if (homeApiResponse != null) {
                         resetLists();
-                        for (Team team : homeApiResponse.getTeams()) {
-                            addToTeamList(team);
+
+                        // Safely update the lists
+                        if (homeApiResponse.getTeams() != null) {
+                            teamList.addAll(homeApiResponse.getTeams());
                         }
-                        for (Post post : homeApiResponse.getPosts()) {
-                            addToPostList(post);
+                        if (homeApiResponse.getPosts() != null) {
+                            postList.addAll(homeApiResponse.getPosts());
                         }
-                        postAdapter.notifyDataSetChanged();
+
+                        /*
+                        // Something wrong with parsing null from json. Ugly fix
+                        if (homeApiResponse.getCurrentUser().equals("not_auth")) {
+                            setCurrentUser(null);
+                        } else {
+                            setCurrentUser(homeApiResponse.getCurrentUser());
+                        }
+                        */
+                        Toast.makeText(MainActivity.this, "cur_usr: " + currentUserButton.getText(), Toast.LENGTH_SHORT).show();
+
+                        // Notify adapter of data change. Run on main thread.
+                        runOnUiThread(() -> postAdapter.notifyDataSetChanged());
                     } else {
                         Log.e(TAG, "fetch_home: Response body is null");
                     }
@@ -388,6 +400,11 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
     }
 
     private void setCurrentUser(String currentUser) {
+        this.sharedPreferences = getSharedPreferences("MyAppPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = this.sharedPreferences.edit();
+        editor.putString("current_user", currentUser);
+        editor.apply();
+
         this.currentUserButton.setText(currentUser);
     }
 }

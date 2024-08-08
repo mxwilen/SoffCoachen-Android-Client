@@ -3,23 +3,29 @@ package com.example.soffcoachen_android.adapters;
 import static android.content.ContentValues.TAG;
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.TextView;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.soffcoachen_android.MainActivity;
 import com.example.soffcoachen_android.PostActivity;
 import com.example.soffcoachen_android.R;
+import com.example.soffcoachen_android.UserPostsActivity;
 import com.example.soffcoachen_android.models.Post;
 import com.example.soffcoachen_android.network.ApiService;
 
@@ -73,12 +79,27 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         holder.titleTextView.setText(post.getTitle());
         holder.contentTextView.setText(post.getContent());
 
+        holder.authorTextView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(context, UserPostsActivity.class);
+                intent.putExtra("user_name", post.getAuthor());
+                context.startActivity(intent);
+                Toast.makeText(context, "hej: " + post.getAuthor(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Check current user status and update likeButton state
+        SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String currentUser = sharedPreferences.getString("current_user", null);
+        holder.likeButton.setEnabled(currentUser != null);
+
         holder.likeButton.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
-                callback.returnToRecyclerView();
                 webView.getSettings().setJavaScriptEnabled(true);
+                webView.addJavascriptInterface(new WebAppInterface(context), "Android");
                 webView.setWebViewClient(new WebViewClient() {
                     @Override
                     public void onPageFinished(WebView view, String url) {
@@ -96,10 +117,32 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
                         webView.evaluateJavascript(script, null);
                     }
                 });
+                // Load the URL to like the post
                 webView.loadUrl(BASE_URL + "like/post?post_id=" + post.getPostId());
-                Log.d(TAG, "liking comment: " + post.getPostId());
             }
         });
+    }
+
+    public class WebAppInterface {
+        Context mContext;
+
+        WebAppInterface(Context context) {
+            mContext = context;
+        }
+
+        @JavascriptInterface
+        public void onLikePostSuccess() {
+            // Ensure that the context is an instance of Activity before calling runOnUiThread
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(mContext, "Liked post!", Toast.LENGTH_SHORT).show();
+                        callback.returnToRecyclerView();
+                    }
+                });
+            }
+        }
     }
 
     @Override
@@ -130,7 +173,15 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             titleTextView = itemView.findViewById(R.id.post_title);
             contentTextView = itemView.findViewById(R.id.post_content);
 
-            likeButton = itemView.findViewById(R.id.likeButton);
+            likeButton = itemView.findViewById(R.id.postActivity_postLikeButton);
+            SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+            String currentUser = sharedPreferences.getString("current_user", null);
+
+            if (currentUser != null) {
+                likeButton.setEnabled(true);
+            } else {
+                likeButton.setEnabled(false);
+            }
 
             cardView = (CardView) itemView;
             cardView.setOnClickListener(new View.OnClickListener() {

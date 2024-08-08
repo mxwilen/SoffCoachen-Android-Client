@@ -3,15 +3,19 @@ package com.example.soffcoachen_android.adapters;
 import static android.content.ContentValues.TAG;
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.soffcoachen_android.R;
 import com.example.soffcoachen_android.models.Comment;
@@ -55,33 +59,59 @@ public class CommentsAdapter extends RecyclerView.Adapter<CommentsAdapter.Commen
         holder.commentContent.setText(comment.getContent());
         holder.commentNoOfLikes.setText(comment.getNoOfLikes());
 
+        // Check current user status and update likeButton state
+        SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String currentUser = sharedPreferences.getString("current_user", null);
+        holder.commentLikeButton.setEnabled(currentUser != null);
+
         holder.commentLikeButton.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
-                callback.returnToRecyclerView();
                 webView.getSettings().setJavaScriptEnabled(true);
+                webView.addJavascriptInterface(new WebAppInterface(context), "Android");
                 webView.setWebViewClient(new WebViewClient() {
                     @Override
                     public void onPageFinished(WebView view, String url) {
                         String script = "(function() {" +
-                                "function checkLikePostSuccess() {" +
+                                "function checkLikeCommentSuccess() {" +
                                 "    var text = document.body.innerText || document.body.textContent;" +
-                                "    if (text.indexOf('like_post_success') !== -1) {" +
-                                "        Android.onLikePostSuccess();" +
+                                "    if (text.indexOf('like_comment_success') !== -1) {" +
+                                "        Android.onLikeCommentSuccess();" +
                                 "    } else {" +
-                                "        setTimeout(checkLikePostSuccess, 1000);" +
+                                "        setTimeout(checkLikeCommentSuccess, 1000);" +
                                 "    }" +
                                 "}" +
-                                "checkLikePostSuccess();" +
+                                "checkLikeCommentSuccess();" +
                                 "})();";
                         webView.evaluateJavascript(script, null);
                     }
                 });
                 webView.loadUrl(BASE_URL + "like/comment?comment_id=" + comment.getId());
-                Log.d(TAG, "liking comment: " + comment.getId());
             }
         });
+    }
+
+    public class WebAppInterface {
+        Context mContext;
+
+        WebAppInterface(Context context) {
+            mContext = context;
+        }
+
+        @JavascriptInterface
+        public void onLikeCommentSuccess() {
+            // Ensure that the context is an instance of Activity before calling runOnUiThread
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(mContext, "Liked comment!", Toast.LENGTH_SHORT).show();
+                        callback.returnToRecyclerView();
+                    }
+                });
+            }
+        }
     }
 
     @Override
@@ -89,7 +119,7 @@ public class CommentsAdapter extends RecyclerView.Adapter<CommentsAdapter.Commen
         return commentsList.size();
     }
 
-    public static class CommentViewHolder extends RecyclerView.ViewHolder {
+    public class CommentViewHolder extends RecyclerView.ViewHolder {
         public TextView commentAuthor;
         public TextView commentAuthorTeam;
         public TextView dateCommented;
@@ -104,7 +134,16 @@ public class CommentsAdapter extends RecyclerView.Adapter<CommentsAdapter.Commen
             dateCommented = itemView.findViewById(R.id.date_commented);
             commentContent = itemView.findViewById(R.id.comment_content);
             commentNoOfLikes = itemView.findViewById(R.id.comment_no_of_likes);
+
             commentLikeButton = itemView.findViewById(R.id.commentLikeButton);
+            SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+            String currentUser = sharedPreferences.getString("current_user", null);
+
+            if (currentUser != null) {
+                commentLikeButton.setEnabled(true);
+            } else {
+                commentLikeButton.setEnabled(false);
+            }
         }
     }
 }
