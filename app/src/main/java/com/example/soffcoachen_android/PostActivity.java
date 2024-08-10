@@ -3,9 +3,11 @@ package com.example.soffcoachen_android;
 import static android.content.ContentValues.TAG;
 
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
+import static com.example.soffcoachen_android.MainActivity.isAuth;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -64,6 +66,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
     private Button postLikeButton;
     private View commentLayout;
     private SharedPreferences sharedPreferences;
+    private Button goBackButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,9 +113,27 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.postLikeButton = findViewById(R.id.postActivity_postLikeButton);
         this.commentLayout = findViewById(R.id.comment_button_layout);
         this.commentButton = findViewById(R.id.commentButton);
+        goBackButton = findViewById(R.id.goBackButton);
+
+        this.postAuthor.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(PostActivity.this, UserPostsActivity.class);
+                intent.putExtra("user_name_to_user_posts", post.getAuthor());
+                startActivity(intent);
+            }
+        });
+
+        goBackButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Intent intent = new Intent(PostActivity.this, MainActivity.class);
+                // startActivity(intent);
+                finish();
+            }
+        });
 
         configCommentAndLikeButton();
-
         this.cancelButton = findViewById(R.id.cancelButton);
         this.cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -173,12 +194,15 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
                         "    var text = document.body.innerText || document.body.textContent;" +
                         "    if (text.indexOf('new_comment_success') !== -1) {" +
                         "        Android.onNewCommentSuccess();" +
+                        "    } else if (text.indexOf('error. post is locked.') !== -1) {" +
+                        "        Android.onPostLockedError();" +
                         "    } else {" +
                         "        setTimeout(checkCommentSuccess, 1000);" +
                         "    }" +
                         "}" +
                         "checkCommentSuccess();" +
                         "})();";
+
                 webView.evaluateJavascript(script, null);
             }
         });
@@ -203,6 +227,19 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
                 @Override
                 public void run() {
                     Toast.makeText(mContext, "Comment created successfully!", Toast.LENGTH_SHORT).show();
+                    cancelButton.setVisibility(View.GONE);
+                    returnToRecyclerView();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void onPostLockedError() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(mContext, "Comment is locked for supporters only!", Toast.LENGTH_SHORT).show();
+                    cancelButton.setVisibility(View.GONE);
                     returnToRecyclerView();
                 }
             });
@@ -294,10 +331,8 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
     }
 
     private void configCommentAndLikeButton() {
-        SharedPreferences sharedPreferences = getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
-        String currentUser = sharedPreferences.getString("current_user", null);
-        this.commentButton.setEnabled(currentUser != null);
-        this.postLikeButton.setEnabled(currentUser != null);
+        this.commentButton.setEnabled(isAuth);
+        this.postLikeButton.setEnabled(isAuth);
     }
 }
 

@@ -1,41 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.Toolbar xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.Toolbar
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/toolbar"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:background="?attr/colorPrimary"
+    android:elevation="4dp"
     android:theme="?attr/actionBarTheme">
 
-    <Button
-        android:id="@+id/loginButton"
+    <LinearLayout
+        android:id="@+id/loginRegisterLayout"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:text="Login"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true" />
+        android:orientation="horizontal"
+        android:layout_gravity="start">
 
-    <Button
-        android:id="@+id/logoutButton"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:text="Logout"
-        android:visibility="gone"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true" />
+        <Button
+            android:id="@+id/loginButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Login" />
 
-    <Button
-        android:id="@+id/newPostButton"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:text="New Post"
-        android:visibility="gone"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true" />
+        <Button
+            android:id="@+id/registerButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Register" />
+    </LinearLayout>
 
-    <Button
-        android:id="@+id/currentUserButton"
+    <LinearLayout
+        android:id="@+id/loggedInLayout"
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:visibility="gone"/>
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="start"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/logoutButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Logout" />
+
+        <Button
+            android:id="@+id/newPostButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="New Post" />
+
+        <Button
+            android:id="@+id/currentUserButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Current User"/>
+    </LinearLayout>
 </androidx.appcompat.widget.Toolbar>

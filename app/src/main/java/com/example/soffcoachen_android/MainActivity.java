@@ -30,6 +30,9 @@ import com.example.soffcoachen_android.models.Post;
 import com.example.soffcoachen_android.models.Team;
 import com.example.soffcoachen_android.network.ApiService;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
@@ -40,7 +43,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 
 public class MainActivity extends AppCompatActivity implements PostAdapter.PostAdapterCallback {
-    public static final String BASE_URL = "http://192.168.0.13:8000/api/";
+    public static final String BASE_URL = "http://10.0.2.2:8000/api/";
     private RecyclerView recyclerView;
     private PostAdapter postAdapter;
     private ApiService apiService;
@@ -53,9 +56,20 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
     private TextView likeCount;
     private Button loginButton;
     private Button logoutButton;
+    private Button registerButton;
     private Button newPostButton;
+    private Button followingFeedButton;
+    private Button homeFeedButton;
     private Button currentUserButton;
+    private View loginRegisterLayout;
+    private View loggedInLayout;
+    private View welcomeText_layout;
     private SharedPreferences sharedPreferences;
+    public static List<String> followingList = new ArrayList<>();
+    private List<Post> followingPosts = new ArrayList<>();
+
+    public static boolean isAuth = false;
+    public static String curUsr;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,15 +82,32 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         this.postAdapter = new PostAdapter(this, this.postList, this.webView, this);
         this.recyclerView.setAdapter(this.postAdapter);
 
-
         // Fetch home page posts from API.
         fetch_home();
 
+        welcomeText_layout = findViewById(R.id.welcomeText_layout);
         this.toolbar = findViewById(R.id.toolbar);
         this.cancelButton = findViewById(R.id.cancelButton);
         this.loginButton = findViewById(R.id.loginButton);
         this.logoutButton = findViewById(R.id.logoutButton);
+        this.registerButton = findViewById(R.id.registerButton);
         this.newPostButton = findViewById(R.id.newPostButton);
+        followingFeedButton = findViewById(R.id.followingFeedButton);
+        homeFeedButton = findViewById(R.id.homeFeedButton);
+        followingFeedButton.setEnabled(isAuth);
+        homeFeedButton.setEnabled(isAuth);
+
+        loginRegisterLayout = findViewById(R.id.loginRegisterLayout);
+        loggedInLayout = findViewById(R.id.loggedInLayout);
+
+        if (isAuth) {
+            loginRegisterLayout.setVisibility(View.GONE);
+            loggedInLayout.setVisibility(View.VISIBLE);
+            setCurrentUser(curUsr);
+        } else {
+            loginRegisterLayout.setVisibility(View.VISIBLE);
+            loggedInLayout.setVisibility(View.GONE);
+        }
 
         this.likeCount = findViewById(R.id.post_no_of_likes);
         this.currentUserButton = findViewById(R.id.currentUserButton);
@@ -101,6 +132,12 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                 openLogoutWebView();
             }
         });
+        this.registerButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openRegisterWebView();
+            }
+        });
         this.newPostButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -111,6 +148,33 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
             @Override
             public void onClick(View v) {
                 openAccountWebView();
+            }
+        });
+        this.followingFeedButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                followingPosts.clear();
+                for (Post post : postList) {
+                    if (followingList.contains(post.getAuthor())) {
+                        followingPosts.add(post);
+                        // Log.d(TAG, "loppis: " + post.getContent());
+                    }
+                }
+                postAdapter.setPostList(followingPosts);
+                postAdapter.notifyDataSetChanged();
+
+                homeFeedButton.setVisibility(View.VISIBLE);
+                followingFeedButton.setVisibility(View.GONE);
+            }
+        });
+        this.homeFeedButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                postAdapter.setPostList(postList);
+                postAdapter.notifyDataSetChanged();
+
+                homeFeedButton.setVisibility(View.GONE);
+                followingFeedButton.setVisibility(View.VISIBLE);
             }
         });
 
@@ -135,7 +199,7 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                         "    try {" +
                         "        var response = JSON.parse(text);" +
                         "        if (response.status === 'login_success') {" +
-                        "            Android.onLoginSuccess(response.current_user);" +
+                        "            Android.onLoginSuccess(response.current_user, JSON.stringify(response.following_list));" +
                         "        } else {" +
                         "            setTimeout(checkLoginSuccess, 1000);" +
                         "        }" +
@@ -178,6 +242,38 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
             }
         });
         this.webView.loadUrl(BASE_URL + "logout");
+    }
+
+    private void openRegisterWebView() {
+        this.webView.getSettings().setJavaScriptEnabled(true);
+        this.webView.addJavascriptInterface(new WebAppInterface(this), "Android");
+        this.webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                String script = "(function() {" +
+                        "function checkRegisterSuccess() {" +
+                        "    var text = document.body.innerText || document.body.textContent;" +
+                        "    try {" +
+                        "        var response = JSON.parse(text);" +
+                        "        if (response.status === 'register_success') {" +
+                        "            Android.onRegisterSuccess(response.current_user, JSON.stringify(response.following_list));" +
+                        "        } else {" +
+                        "            setTimeout(checkRegisterSuccess, 1000);" +
+                        "        }" +
+                        "    } catch (e) {" +
+                        "        setTimeout(checkRegisterSuccess, 1000);" +
+                        "    }" +
+                        "}" +
+                        "checkRegisterSuccess();" +
+                        "})();";
+                webView.evaluateJavascript(script, null);
+            }
+        });
+        this.recyclerView.setVisibility(View.GONE);
+        this.toolbar.setVisibility(View.GONE);
+        this.webView.setVisibility(View.VISIBLE);
+        this.cancelButton.setVisibility(View.VISIBLE);
+        this.webView.loadUrl(BASE_URL + "register");
     }
 
     private void openNewPostWebView() {
@@ -261,16 +357,28 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         }
 
         @JavascriptInterface
-        public void onLoginSuccess(String currentUser) {
+        public void onLoginSuccess(String currentUser, String following_list_json) {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     setCurrentUser(currentUser);
-                    currentUserButton.setVisibility(View.VISIBLE);
 
-                    loginButton.setVisibility(View.GONE);
-                    logoutButton.setVisibility(View.VISIBLE);
-                    newPostButton.setVisibility(View.VISIBLE);
+                    // Parse the JSON string into a List<String>
+                    try {
+                        JSONArray jsonArray = new JSONArray(following_list_json);
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            followingList.add(jsonArray.getString(i));
+                        }
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    loginRegisterLayout.setVisibility(View.GONE);
+                    loggedInLayout.setVisibility(View.VISIBLE);
+
+                    followingFeedButton.setEnabled(isAuth);
+                    homeFeedButton.setEnabled(isAuth);
+
                     Toast.makeText(MainActivity.this, "Successfully logged in. Welcome back!", Toast.LENGTH_SHORT).show();
                     returnToRecyclerView();
                 }
@@ -283,13 +391,48 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                 ((Activity) mContext).runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        setCurrentUser(null);
-                        currentUserButton.setVisibility(View.GONE);
+                        setCurrentUser("");
 
-                        loginButton.setVisibility(View.VISIBLE);
-                        logoutButton.setVisibility(View.GONE);
-                        newPostButton.setVisibility(View.GONE);
+                        followingList.clear();
+
+                        loginRegisterLayout.setVisibility(View.VISIBLE);
+                        loggedInLayout.setVisibility(View.GONE);
+
+                        followingFeedButton.setEnabled(isAuth);
+                        homeFeedButton.setEnabled(isAuth);
+
                         Toast.makeText(MainActivity.this, "Successfully logged out!", Toast.LENGTH_SHORT).show();
+                        returnToRecyclerView();
+                    }
+                });
+            }
+        }
+
+        @JavascriptInterface
+        public void onRegisterSuccess(String currentUser, String following_list_json) {
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setCurrentUser(currentUser);
+
+                        // Parse the JSON string into a List<String>
+                        try {
+                            JSONArray jsonArray = new JSONArray(following_list_json);
+                            for (int i = 0; i < jsonArray.length(); i++) {
+                                followingList.add(jsonArray.getString(i));
+                            }
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        loginRegisterLayout.setVisibility(View.GONE);
+                        loggedInLayout.setVisibility(View.VISIBLE);
+
+                        followingFeedButton.setEnabled(isAuth);
+                        homeFeedButton.setEnabled(isAuth);
+
+                        Toast.makeText(MainActivity.this, "Successfully created account. You are logged in!", Toast.LENGTH_LONG).show();
                         returnToRecyclerView();
                     }
                 });
@@ -355,16 +498,6 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                             postList.addAll(homeApiResponse.getPosts());
                         }
 
-                        /*
-                        // Something wrong with parsing null from json. Ugly fix
-                        if (homeApiResponse.getCurrentUser().equals("not_auth")) {
-                            setCurrentUser(null);
-                        } else {
-                            setCurrentUser(homeApiResponse.getCurrentUser());
-                        }
-                        */
-                        Toast.makeText(MainActivity.this, "cur_usr: " + currentUserButton.getText(), Toast.LENGTH_SHORT).show();
-
                         // Notify adapter of data change. Run on main thread.
                         runOnUiThread(() -> postAdapter.notifyDataSetChanged());
                     } else {
@@ -404,6 +537,15 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         SharedPreferences.Editor editor = this.sharedPreferences.edit();
         editor.putString("current_user", currentUser);
         editor.apply();
+
+        if (currentUser.equals("")) {
+            isAuth = false;
+            welcomeText_layout.setVisibility(View.VISIBLE);
+        } else {
+            welcomeText_layout.setVisibility(View.GONE);
+            isAuth = true;
+        }
+        curUsr = currentUser;
 
         this.currentUserButton.setText(currentUser);
     }

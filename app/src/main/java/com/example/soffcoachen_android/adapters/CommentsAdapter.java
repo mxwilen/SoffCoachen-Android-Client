@@ -2,9 +2,11 @@ package com.example.soffcoachen_android.adapters;
 
 import static android.content.ContentValues.TAG;
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
+import static com.example.soffcoachen_android.MainActivity.isAuth;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -18,6 +20,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.soffcoachen_android.R;
+import com.example.soffcoachen_android.UserPostsActivity;
 import com.example.soffcoachen_android.models.Comment;
 
 import androidx.annotation.NonNull;
@@ -62,7 +65,16 @@ public class CommentsAdapter extends RecyclerView.Adapter<CommentsAdapter.Commen
         // Check current user status and update likeButton state
         SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
         String currentUser = sharedPreferences.getString("current_user", null);
-        holder.commentLikeButton.setEnabled(currentUser != null);
+        holder.commentLikeButton.setEnabled(isAuth);
+
+        holder.commentAuthor.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(context, UserPostsActivity.class);
+                intent.putExtra("user_name", comment.getAuthor());
+                context.startActivity(intent);
+            }
+        });
 
         holder.commentLikeButton.setOnClickListener(new View.OnClickListener() {
 
@@ -139,11 +151,7 @@ public class CommentsAdapter extends RecyclerView.Adapter<CommentsAdapter.Commen
             SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
             String currentUser = sharedPreferences.getString("current_user", null);
 
-            if (currentUser != null) {
-                commentLikeButton.setEnabled(true);
-            } else {
-                commentLikeButton.setEnabled(false);
-            }
+            commentLikeButton.setEnabled(isAuth);
         }
     }
 }

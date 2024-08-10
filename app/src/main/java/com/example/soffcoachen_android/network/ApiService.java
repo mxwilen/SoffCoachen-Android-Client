@@ -10,4 +10,7 @@ public interface ApiService {
 
     @GET("post")
     Call<PostApiResponse> getPostApiResponse(@Query("post_id") int parameterValue);
+
+    @GET("user")
+    Call<UserPostsApiResponse>getUserPostsApiResponse(@Query("username") String parameterValue);
 }

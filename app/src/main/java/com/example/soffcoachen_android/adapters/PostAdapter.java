@@ -2,6 +2,7 @@ package com.example.soffcoachen_android.adapters;
 
 import static android.content.ContentValues.TAG;
 import static com.example.soffcoachen_android.MainActivity.BASE_URL;
+import static com.example.soffcoachen_android.MainActivity.isAuth;
 
 import android.app.Activity;
 import android.content.Context;
@@ -34,7 +35,7 @@ import java.util.List;
 public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder> {
 
     private Context context;
-    private final List<Post> postList;
+    private List<Post> postList;
     private OnItemClickListener listener;
     private ApiService apiService;
     private WebView webView;
@@ -60,6 +61,10 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         this.callback = callback;
     }
 
+    public void setPostList(List<Post> newPostList) {
+        this.postList = newPostList;
+    }
+
     @NonNull
     @Override
     public PostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -83,17 +88,12 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(context, UserPostsActivity.class);
-                intent.putExtra("user_name", post.getAuthor());
+                intent.putExtra("user_name_to_user_posts", post.getAuthor());
                 context.startActivity(intent);
-                Toast.makeText(context, "hej: " + post.getAuthor(), Toast.LENGTH_SHORT).show();
             }
         });
 
-        // Check current user status and update likeButton state
-        SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
-        String currentUser = sharedPreferences.getString("current_user", null);
-        holder.likeButton.setEnabled(currentUser != null);
-
+        holder.likeButton.setEnabled(isAuth);
         holder.likeButton.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -174,14 +174,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             contentTextView = itemView.findViewById(R.id.post_content);
 
             likeButton = itemView.findViewById(R.id.postActivity_postLikeButton);
-            SharedPreferences sharedPreferences = context.getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
-            String currentUser = sharedPreferences.getString("current_user", null);
-
-            if (currentUser != null) {
-                likeButton.setEnabled(true);
-            } else {
-                likeButton.setEnabled(false);
-            }
+            likeButton.setEnabled(isAuth);
 
             cardView = (CardView) itemView;
             cardView.setOnClickListener(new View.OnClickListener() {
