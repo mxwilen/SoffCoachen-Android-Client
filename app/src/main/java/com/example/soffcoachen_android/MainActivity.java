@@ -12,7 +12,6 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -46,14 +45,12 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
     public static final String BASE_URL = "http://10.0.2.2:8000/api/";
     private RecyclerView recyclerView;
     private PostAdapter postAdapter;
-    private ApiService apiService;
     private List<Post> postList = new ArrayList<>();
     private List<Team> teamList = new ArrayList<>();
     private List<Comment> commentList = new ArrayList<>();
     private WebView webView;
     private Toolbar toolbar;
     private Button cancelButton;
-    private TextView likeCount;
     private Button loginButton;
     private Button logoutButton;
     private Button registerButton;
@@ -76,6 +73,7 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Init of basic layout and page foundation
         this.recyclerView = findViewById(R.id.recyclerView_posts);
         this.webView = findViewById(R.id.webView);
         this.recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -85,32 +83,33 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         // Fetch home page posts from API.
         fetch_home();
 
-        welcomeText_layout = findViewById(R.id.welcomeText_layout);
+        // Locate and init all the views used.
+        this.welcomeText_layout = findViewById(R.id.welcomeText_layout);
         this.toolbar = findViewById(R.id.toolbar);
         this.cancelButton = findViewById(R.id.cancelButton);
         this.loginButton = findViewById(R.id.loginButton);
         this.logoutButton = findViewById(R.id.logoutButton);
         this.registerButton = findViewById(R.id.registerButton);
         this.newPostButton = findViewById(R.id.newPostButton);
-        followingFeedButton = findViewById(R.id.followingFeedButton);
-        homeFeedButton = findViewById(R.id.homeFeedButton);
-        followingFeedButton.setEnabled(isAuth);
-        homeFeedButton.setEnabled(isAuth);
+        this.followingFeedButton = findViewById(R.id.followingFeedButton);
+        this.homeFeedButton = findViewById(R.id.homeFeedButton);
+        this.followingFeedButton.setEnabled(isAuth);
+        this.homeFeedButton.setEnabled(isAuth);
+        this.loginRegisterLayout = findViewById(R.id.loginRegisterLayout);
+        this.loggedInLayout = findViewById(R.id.loggedInLayout);
+        this.currentUserButton = findViewById(R.id.currentUserButton);
 
-        loginRegisterLayout = findViewById(R.id.loginRegisterLayout);
-        loggedInLayout = findViewById(R.id.loggedInLayout);
-
+        // isAuth is changed when successfully returning from the API (after login or logout)
         if (isAuth) {
-            loginRegisterLayout.setVisibility(View.GONE);
-            loggedInLayout.setVisibility(View.VISIBLE);
+            this.loginRegisterLayout.setVisibility(View.GONE);
+            this.loggedInLayout.setVisibility(View.VISIBLE);
             setCurrentUser(curUsr);
         } else {
-            loginRegisterLayout.setVisibility(View.VISIBLE);
-            loggedInLayout.setVisibility(View.GONE);
+            this.loginRegisterLayout.setVisibility(View.VISIBLE);
+            this.loggedInLayout.setVisibility(View.GONE);
         }
 
-        this.likeCount = findViewById(R.id.post_no_of_likes);
-        this.currentUserButton = findViewById(R.id.currentUserButton);
+        // onClickListeners for all the buttons in this activity.
         this.cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -157,7 +156,6 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                 for (Post post : postList) {
                     if (followingList.contains(post.getAuthor())) {
                         followingPosts.add(post);
-                        // Log.d(TAG, "loppis: " + post.getContent());
                     }
                 }
                 postAdapter.setPostList(followingPosts);
@@ -177,7 +175,6 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
                 followingFeedButton.setVisibility(View.VISIBLE);
             }
         });
-
         this.postAdapter.setOnItemClickListener(new PostAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(int position) {
@@ -186,6 +183,12 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         });
     }
 
+    /*
+        All the "open*WebView() functions work in the same way:
+            - opens a hidden webview which fetches data from the API with the specified route and its needed parameters.
+            - the webview reads the response and looks for a success message.
+            - on success it calls the appropriate "on-success-response" function (see later in this file)
+    */
     private void openLoginWebView() {
         this.webView = findViewById(R.id.webView);
         this.webView.getSettings().setJavaScriptEnabled(true);
@@ -339,6 +342,7 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         this.webView.loadUrl(BASE_URL + "account");
     }
 
+    // Called after a webview has been active or/and when the activityview should be restored.
     public void returnToRecyclerView() {
         fetch_home();
 
@@ -356,6 +360,13 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
             mContext = context;
         }
 
+        /*
+           All "on*Success" work more or less in the same way.
+            - gets called when a success response is fetched from the API.
+            - parses the data gathered and stores it locally.
+            - then updates the activity accordingly.
+            - lastly calls returnToRecyclerView which closes the webview and restores the activity.
+        */
         @JavascriptInterface
         public void onLoginSuccess(String currentUser, String following_list_json) {
             runOnUiThread(new Runnable() {
@@ -464,23 +475,22 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         }
     }
 
-
+    // fetches data from the "home" api route
     private void fetch_home() {
         // Adding logging interceptor to log the network requests
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.setLevel(HttpLoggingInterceptor.Level.NONE);
-
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(logging);
 
+        // Setup to fetch and catch data from an API request.
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .client(httpClient.build())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
-
-        this.apiService = retrofit.create(ApiService.class);
-        Call<HomeApiResponse> call = this.apiService.getHomeApiResponse();
+        ApiService apiService = retrofit.create(ApiService.class);
+        Call<HomeApiResponse> call = apiService.getHomeApiResponse();
 
         call.enqueue(new Callback<HomeApiResponse>() {
             @Override
@@ -532,6 +542,8 @@ public class MainActivity extends AppCompatActivity implements PostAdapter.PostA
         this.commentList.add(comment);
     }
 
+    // Used to control the currentUser.
+    // No authentication is done here. It only changes the currentUser on request from the functions using the webview.
     private void setCurrentUser(String currentUser) {
         this.sharedPreferences = getSharedPreferences("MyAppPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = this.sharedPreferences.edit();

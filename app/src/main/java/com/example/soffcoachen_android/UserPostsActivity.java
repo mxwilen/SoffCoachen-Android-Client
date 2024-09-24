@@ -48,7 +48,6 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
     private ApiService apiService;
     private TextView userNameTextView;
     private String userName;
-    private SharedPreferences sharedPreferences;
     private WebView webView;
     private TextView teamTextView;
     private TextView noOfFollowersTextView;
@@ -62,29 +61,29 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_posts);
 
-        recyclerView = findViewById(R.id.userPostsRecyclerView);
-        webView = findViewById(R.id.webView);
+        this.recyclerView = findViewById(R.id.userPostsRecyclerView);
+        this.webView = findViewById(R.id.webView);
+        this.userNameTextView = findViewById(R.id.userPosts_username);
+        this.teamTextView = findViewById(R.id.userPosts_team);
+        this.noOfFollowersTextView = findViewById(R.id.userPosts_noOfFollowers_val);
+        this.noOfLikesTextView = findViewById(R.id.userPosts_noOfRecLikes_val);
+        this.noOfWrittenComTextView = findViewById(R.id.userPosts_noOfWrittenCom_val);
+        this.followButtonTextView = findViewById(R.id.userPosts_followButton);
+        this.followButtonTextView.setEnabled(isAuth);
 
-        userNameTextView = findViewById(R.id.userPosts_username);
-        teamTextView = findViewById(R.id.userPosts_team);
-        noOfFollowersTextView = findViewById(R.id.userPosts_noOfFollowers_val);
-        noOfLikesTextView = findViewById(R.id.userPosts_noOfRecLikes_val);
-        noOfWrittenComTextView = findViewById(R.id.userPosts_noOfWrittenCom_val);
-        followButtonTextView = findViewById(R.id.userPosts_followButton);
-        followButtonTextView.setEnabled(isAuth);
-
+        // Displays the "follow" or "unfollow" on the action button depending on the current user has that user in its following list (gathered from a previous activity).
         if (followingList != null) {
             for (String username : followingList) {
-                if (userNameTextView.getText().equals(username)) {
-                    followButtonTextView.setText("Unfollow");
+                if (this.userNameTextView.getText().equals(username)) {
+                    this.followButtonTextView.setText("Unfollow");
                     break;
                 } else {
-                    followButtonTextView.setText("Follow");
+                    this.followButtonTextView.setText("Follow");
                 }
             }
         }
 
-        followButtonTextView.setOnClickListener(new View.OnClickListener() {
+        this.followButtonTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 openFollowUserWebView();
@@ -93,33 +92,38 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
 
         // Get the user name used in this activity from the intent
         Intent intent = getIntent();
-        userName = intent.getStringExtra("user_name_to_user_posts");
+        this.userName = intent.getStringExtra("user_name_to_user_posts");
 
         // Fetch posts made by the user
         fetchUserPosts();
 
-        // Set the user's name in the TextView
-        userNameTextView.setText(userName);
+        // Set the users name in the TextView
+        this.userNameTextView.setText(userName);
 
-        postAdapter = new PostAdapter(this, this.postList, this.webView, this);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(postAdapter);
+        this.postAdapter = new PostAdapter(this, this.postList, this.webView, this);
+        this.recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        this.recyclerView.setAdapter(postAdapter);
 
-        goBackButton = findViewById(R.id.goBackButton);
-        goBackButton.setOnClickListener(new View.OnClickListener() {
+        this.goBackButton = findViewById(R.id.goBackButton);
+        this.goBackButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Intent intent = new Intent(UserPostsActivity.this, MainActivity.class);
-                // startActivity(intent);
+                // Exit the userPostActivity and go back the the activity that led me here.
                 finish();
             }
         });
     }
 
+    /*
+        All the "open*WebView() functions work in the same way:
+            - opens a hidden webview which fetches data from the API with the specified route and its needed parameters.
+            - the webview reads the response and looks for a success message.
+            - on success it calls the appropriate "on-success-response" function (see later in this file)
+    */
     private void openFollowUserWebView() {
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.addJavascriptInterface(new UserPostsActivity.WebAppInterface(this), "Android");
-        webView.setWebViewClient(new WebViewClient() {
+        this.webView.getSettings().setJavaScriptEnabled(true);
+        this.webView.addJavascriptInterface(new UserPostsActivity.WebAppInterface(this), "Android");
+        this.webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 String script = "(function() {" +
@@ -142,7 +146,7 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
             }
         });
         // Load the URL to like the post
-        webView.loadUrl(BASE_URL + "follow?username=" + userName);
+        this.webView.loadUrl(BASE_URL + "follow?username=" + userName);
     }
 
     public class WebAppInterface {
@@ -152,6 +156,13 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
             mContext = context;
         }
 
+        /*
+           All "on*Success" work more or less in the same way.
+            - gets called when a success response is fetched from the API.
+            - parses the data gathered and stores it locally.
+            - then updates the activity accordingly.
+            - lastly calls returnToRecyclerView which closes the webview and restores the activity.
+        */
         @JavascriptInterface
         public void onFollowUserSuccess(boolean isFollowing) {
             // Ensure that the context is an instance of Activity before calling runOnUiThread
@@ -176,14 +187,15 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
         }
     }
 
+    // Fetches data for a users page. (its posts and metadata)
     private void fetchUserPosts() {
         // Adding logging interceptor to log the network requests
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.setLevel(HttpLoggingInterceptor.Level.NONE);
-
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(logging);
 
+        // Setup to fetch and store the API response.
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .client(httpClient.build())
@@ -213,7 +225,6 @@ public class UserPostsActivity extends AppCompatActivity implements PostAdapter.
                         // Changing to follow or unfollow depending on the current following-state
                         boolean isFollowing = false;
                         if (followingList != null && !followingList.isEmpty()) {
-                            isFollowing = false;
                             String currentUsername = userNameTextView.getText().toString();
 
                             for (String username : followingList) {

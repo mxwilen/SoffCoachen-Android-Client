@@ -32,6 +32,11 @@ import com.example.soffcoachen_android.network.ApiService;
 
 import java.util.List;
 
+
+/*
+    Controls each comment card in the comment recyclerview.
+    Data for a specific is changed after retrieving the position of that card in the recyclerview.
+*/
 public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder> {
 
     private Context context;
@@ -96,6 +101,12 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
         holder.likeButton.setEnabled(isAuth);
         holder.likeButton.setOnClickListener(new View.OnClickListener() {
 
+            /*
+                Same as the "open*WebView()" functions found in the other files:
+                    - opens a hidden webview which fetches data from the API with the specified route and its needed parameters.
+                    - the webview reads the response and looks for a success message.
+                    - on success it calls the appropriate "on-success-response" function (see later in this file)
+            */
             @Override
             public void onClick(View v) {
                 webView.getSettings().setJavaScriptEnabled(true);
@@ -130,6 +141,13 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
             mContext = context;
         }
 
+        /*
+           All "on*Success" work more or less in the same way.
+            - gets called when a success response is fetched from the API.
+            - parses the data gathered and stores it locally.
+            - then updates the activity accordingly.
+            - lastly calls returnToRecyclerView which closes the webview and restores the activity.
+        */
         @JavascriptInterface
         public void onLikePostSuccess() {
             // Ensure that the context is an instance of Activity before calling runOnUiThread

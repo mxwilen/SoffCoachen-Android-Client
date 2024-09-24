@@ -113,7 +113,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.postLikeButton = findViewById(R.id.postActivity_postLikeButton);
         this.commentLayout = findViewById(R.id.comment_button_layout);
         this.commentButton = findViewById(R.id.commentButton);
-        goBackButton = findViewById(R.id.goBackButton);
+        this.goBackButton = findViewById(R.id.goBackButton);
 
         this.postAuthor.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -124,11 +124,10 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
             }
         });
 
-        goBackButton.setOnClickListener(new View.OnClickListener() {
+        this.goBackButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Intent intent = new Intent(PostActivity.this, MainActivity.class);
-                // startActivity(intent);
+                // Exit the postActivity and go back the the activity that led me here.
                 finish();
             }
         });
@@ -158,6 +157,12 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         fetch_post(postId);
     }
 
+    /*
+        All the "open*WebView() functions work in the same way:
+            - opens a hidden webview which fetches data from the API with the specified route and its needed parameters.
+            - the webview reads the response and looks for a success message.
+            - on success it calls the appropriate "on-success-response" function (see later in this file)
+    */
     private void openLikePostWebView() {
         this.webView.getSettings().setJavaScriptEnabled(true);
         this.webView.addJavascriptInterface(new PostActivity.WebAppInterface(this), "Android");
@@ -221,6 +226,13 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
             mContext = context;
         }
 
+        /*
+           All "on*Success" work more or less in the same way.
+            - gets called when a success response is fetched from the API.
+            - parses the data gathered and stores it locally.
+            - then updates the activity accordingly.
+            - lastly calls returnToRecyclerView which closes the webview and restores the activity.
+        */
         @JavascriptInterface
         public void onNewCommentSuccess() {
             runOnUiThread(new Runnable() {
@@ -262,20 +274,20 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         }
     }
 
+    // Fetches data concerning a specific post (its comments, user and post data).
     private void fetch_post(int postId) {
         // Adding logging interceptor to log the network requests
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.setLevel(HttpLoggingInterceptor.Level.NONE);
-
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(logging);
 
+        // Setup for fetching and storing responses from the API route
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .client(httpClient.build())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
-
         this.apiService = retrofit.create(ApiService.class);
         Call<PostApiResponse> call = this.apiService.getPostApiResponse(postId);
 
@@ -319,6 +331,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.commentsList.clear();
     }
 
+    // Used when the webview should be closed down and the client activity view should be restored.
     public void returnToRecyclerView() {
         configCommentAndLikeButton();
         fetch_post(this.postId);
@@ -330,6 +343,7 @@ public class PostActivity extends AppCompatActivity implements CommentsAdapter.C
         this.webView.getSettings().setJavaScriptEnabled(false);
     }
 
+    // Viewable or not depending on the isAuth field. Is called when user has logged in or logged out successfully.
     private void configCommentAndLikeButton() {
         this.commentButton.setEnabled(isAuth);
         this.postLikeButton.setEnabled(isAuth);
