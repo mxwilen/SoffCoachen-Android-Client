@@ -1,1 +1,1 @@
-## Repo for my Client android app that connects to SoffCoachen (other repo)
+## Repo for my client android app that connects to SoffCoachen (other repo)
