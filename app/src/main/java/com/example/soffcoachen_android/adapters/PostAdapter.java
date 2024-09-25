@@ -42,7 +42,6 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.PostViewHolder
     private Context context;
     private List<Post> postList;
     private OnItemClickListener listener;
-    private ApiService apiService;
     private WebView webView;
     private PostAdapterCallback callback;
 
